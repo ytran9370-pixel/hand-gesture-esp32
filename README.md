@@ -7,12 +7,6 @@ The system lets a user switch room lights and open or close a door with hand ges
 
 ## How it works
 
-A PC webcam captures the user's hand, and the cropped image is streamed over UART to an ESP32-S3.
-On the microcontroller, a lightweight convolutional neural network (CNN) classifies the gesture, a control state machine decides which action to take. 
-The firmware drives the outputs: three LEDs representing room lights, a servo representing a door, an I2C OLED status display and an SPI RFID reader that must unlock the system before any gesture is accepted.
-
-![System architecture](docs/uml/architecture.svg)
-
 1. The PC webcam captures a webcam frame, finds the hand and resizes it to 64×64 RGB.
 2. The image is sent to the ESP32-S3 in a binary frame with a CRC-16 over UART at 921 600 baud 
 3. On the microcontroller ESP32-S3, a lightweight convolutional neural network (CNN) classifies the gesture, a control state machine decides which action to take. 
