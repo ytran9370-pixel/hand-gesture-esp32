@@ -1,5 +1,3 @@
-cd ~/projects/hand-gesture-esp32
-cat > README.md <<'EOF'
 # HAND GESTURE
 
 A gesture-controlled embedded system that runs an INT8 convolutional neural network (CNN) on an ESP32-S3 microcontroller.
