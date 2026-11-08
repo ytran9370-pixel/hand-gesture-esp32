@@ -22,13 +22,17 @@ jobs:
           target: esp32s3
           path: firmware
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Merge into one .bin (flash at offset 0x0)
         run: |
-          pip install esptool
+          python -m pip install esptool
           cd firmware/build
-          python -m esptool --chip esp32s3 merge_bin -o hand_gesture_merged.bin @flash_args
+          python -m esptool --chip esp32s3 merge_bin -o "$GITHUB_WORKSPACE/hand_gesture_merged.bin" @flash_args
 
       - uses: actions/upload-artifact@v4
         with:
           name: firmware-esp32s3
-          path: firmware/build/hand_gesture_merged.bin
+          path: hand_gesture_merged.bin

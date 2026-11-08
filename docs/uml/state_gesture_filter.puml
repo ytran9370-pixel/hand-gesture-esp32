@@ -1,0 +1,23 @@
+@startuml state_gesture_filter
+!include _style.iuml
+title State machine — gesture filter (debounce)
+
+[*] --> IDLE
+
+IDLE --> CANDIDATE : image [conf >= 0.8]\n/ cls = class, count = 1
+IDLE --> IDLE : image [conf < 0.8]
+
+CANDIDATE --> CANDIDATE : image [class == cls and conf >= 0.8]\n/ count++
+CANDIDATE --> CANDIDATE : image [class != cls and conf >= 0.8]\n/ cls = class, count = 1
+CANDIDATE --> IDLE : image [conf < 0.8]
+CANDIDATE --> COOLDOWN : [count == 3]\n/ emit CONFIRMED(cls)
+
+COOLDOWN --> IDLE : 1.5 s elapsed
+COOLDOWN : all images ignored
+
+note right of CANDIDATE
+  3 consecutive images of the same class
+  at ~280 ms per image => ~0.85 s
+  gesture-to-action (NFR-PERF-03)
+end note
+@enduml
