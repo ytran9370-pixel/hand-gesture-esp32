@@ -6,6 +6,7 @@ A gesture-controlled embedded system that runs a model convolutional neural netw
 The system lets a user switch room lights and open or close a door with hand gestures, without touching any physical switch.
 
 ## How it works
+
 A PC webcam captures the user's hand, and the cropped image is streamed over UART to an ESP32-S3.
 On the microcontroller, a lightweight convolutional neural network (CNN) classifies the gesture, a control state machine decides which action to take. 
 The firmware drives the outputs: three LEDs representing room lights, a servo representing a door, an I2C OLED status display and an SPI RFID reader that must unlock the system before any gesture is accepted.
