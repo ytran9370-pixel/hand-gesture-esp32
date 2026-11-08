@@ -1,3 +1,5 @@
+cd ~/projects/hand-gesture-esp32
+cat > README.md <<'EOF'
 # HAND GESTURE
 
 A gesture-controlled embedded system that runs an INT8 convolutional neural network (CNN) on an ESP32-S3 microcontroller.
@@ -47,25 +49,3 @@ Input: 64×64 RGB hand image. Output: 18 gesture classes (HaGRID dataset).
 | RC522 RFID reader | SPI | SCK 12, MOSI 11, MISO 13, CS 10, RST 14 |
 | 3 LEDs (220 ohm) | GPIO | 4, 5, 6 |
 | SG90 servo | PWM 50 Hz (LEDC) | 7 |
-
-## Repository layout
-
-```
-.github/workflows/  CI: host test and ESP-IDF firmware build on every push
-docs/               requirements, UART protocol, UML diagrams (PlantUML sources and SVG)
-firmware/           ESP-IDF project for the ESP32-S3 (C)
-host/               Linux build of the inference engine and bit-exact test
-model/              INT8 export script (PyTorch checkpoint to C arrays)
-pc_app/             C++ host application (in progress)
-tests/              end-to-end tests (in progress)
-```
-
-## Documentation
-
-- [Requirements specification](docs/requirements.md)
-- [UART protocol specification](docs/protocol.md)
-- [UML diagrams](docs/uml/)
-
-## Author
-
-Tran Yen Quynh, Electronics and Communications Engineering Technology, HCMUTE
