@@ -2,58 +2,47 @@
 
 ![CI](https://github.com/ytran9370-pixel/hand-gesture-esp32/actions/workflows/build.yml/badge.svg)
 
-Control lights and a door with hand gestures. An **INT8-quantized CNN** runs on an **ESP32-S3**
-with an inference engine written in plain C. A C++ application on the PC captures the webcam,
-crops the hand and streams it over **UART**; the ESP32-S3 drives an **I2C OLED**, an **SPI RFID reader**,
-LEDs and a servo under **FreeRTOS**.
-
-> **Status:** Phase 2 of 6 — the model runs bit-exact in the C engine and the firmware is built by CI.
-> Hardware bring-up and on-device measurements are next. See the [roadmap](#roadmap).
-
-<!-- Demo video / GIF: add after Phase 5 -->
+A gesture-controlled embedded system that runs a model convolutional neural network (CNN) INT8 on an ESP32-S3 microcontroller.
+The system lets a user switch room lights and open or close a door with hand gestures, without touching any physical switch.
 
 ## How it works
+A PC webcam captures the user's hand, and the cropped image is streamed over UART to an ESP32-S3.
+On the microcontroller, a lightweight convolutional neural network (CNN) classifies the gesture, a control state machine decides which action to take. 
+The firmware drives the outputs: three LEDs representing room lights, a servo representing a door, an I2C OLED status display and an SPI RFID reader that must unlock the system before any gesture is accepted.
 
 ![System architecture](docs/uml/architecture.svg)
 
-1. The **PC application** (C++17, OpenCV) captures a webcam frame, finds the hand and resizes it to 64×64 RGB.
-2. The image is sent to the ESP32-S3 in a binary frame with a **CRC-16** over UART at 921 600 baud ([protocol](docs/protocol.md)).
-3. On the ESP32-S3, one FreeRTOS task receives frames while another runs the **INT8 CNN** (18 classes).
-4. A **gesture filter** accepts a gesture only after 3 consecutive matching predictions with confidence ≥ 0.8.
-5. A **state machine** executes the action only when the system was unlocked with a registered **RFID card**.
+1. The PC webcam captures a webcam frame, finds the hand and resizes it to 64×64 RGB.
+2. The image is sent to the ESP32-S3 in a binary frame with a CRC-16 over UART at 921 600 baud 
+3. On the microcontroller ESP32-S3, a lightweight convolutional neural network (CNN) classifies the gesture, a control state machine decides which action to take. 
+4. The firmware drives the outputs: three LEDs representing room lights, a servo representing a door, an I2C OLED status display and an SPI RFID reader that must unlock the system before any gesture is accepted.
 
-| Gesture | Action | | Gesture | Action |
-|---|---|---|---|---|
-| `palm` | All lights on | | `like` | Open door |
-| `fist` | All lights off | | `dislike` | Close door |
-| `one` / `rock` / `mute` | Toggle light 1 / 2 / 3 | | `stop` | Lock the system |
-
-Gestures were selected from the model's per-class test results so that the most likely mistake maps to *no action*
-([requirements §5.1](docs/requirements.md#51-gesture-recognition-ges)).
+| Gesture | Action |
+|---|---|
+| palm | All lights on |
+| fist | All lights off |
+| one / rock / mute | Toggle light 1 / 2 / 3 |
+| like | Open door |
+| dislike | Close door |
+| stop | Lock the system |
 
 ## Model
 
+Input: 64 x 64 RGB hand image. Output: 18 gesture classes (HaGRID dataset).
+
+| Block | Layers | Output size |
+|---|---|---|
+| Stem | Conv 3x3, stride 2, 16 filters | 32 x 32 x 16 |
+| Stage 1 | Conv 3x3 (32), Conv 1x1 (32), MaxPool 2x2 | 16 x 16 x 32 |
+| Stage 2 | Conv 3x3 (64), Conv 1x1 (64), MaxPool 2x2 | 8 x 8 x 64 |
+| Stage 3 | Conv 3x3 (96), Conv 1x1 (96), MaxPool 2x2 | 4 x 4 x 96 |
+| Head | Global average pooling, fully connected | 18 |
+
 | | FP32 | INT8 (deployed) |
 |---|---|---|
-| Classes | 18 (HaGRID) | 18 |
-| Input | 64×64 RGB | 64×64 RGB |
-| Test accuracy (5 032 images, split by user) | 94.6 % | 94.2 % (QAT W8A8) |
-| Weights | 370 KB | **92.6 KB** |
-| MACs per image | 16.1 M | 16.1 M |
-| Peak activation memory | 256 KB | **64 KB** |
-
-Quantization: symmetric INT8, per-channel weights, BatchNorm folded, no zero-point.
-The C engine uses integer arithmetic only (fixed-point requantization) and produces **bit-exact** logits
-compared with a NumPy reference model.
-
-## Results
-
-| Metric | Value |
-|---|---|
-| Bit-exact logits vs. reference model (host, 10 test images) | 10 / 10 ✅ |
-| On-device inference time @ 240 MHz | _to be measured (Phase 2)_ |
-| Per-image round trip PC → ESP32 → PC | _to be measured (Phase 5)_ |
-| Gesture-to-action latency | _to be measured (Phase 5)_ |
+| Test accuracy (5,032 images, split by user) | 94.6% | 94.2% |
+| Weight size | 370 KB | 92.6 KB |
+| Peak activation memory | 256 KB | 64 KB |
 
 ## Hardware
 
@@ -78,37 +67,11 @@ pc_app/             C++ host application (Phase 3)
 tests/              end-to-end tests (Phase 5)
 ```
 
-## Build and run
-
-**Host test (Linux / WSL)** — checks that the C engine matches the reference model:
-
-```bash
-make -C host
-```
-
-**Firmware** — built automatically by GitHub Actions on every push:
-
-1. Open the **Actions** tab, pick the latest successful run, download the `firmware-esp32s3` artifact.
-2. Open [esptool-js](https://espressif.github.io/esptool-js/) in Chrome or Edge, connect to the board's UART port at 921 600 baud.
-3. Flash `hand_gesture_merged.bin` at address `0x0`, then open the console at 115 200 baud and press RESET.
-
 ## Documentation
 
-| Document | Content |
-|---|---|
-| [Requirements (HG-SRS-001)](docs/requirements.md) | Functional and non-functional requirements, latency budget, traceability |
-| [UART protocol (HG-ICD-001)](docs/protocol.md) | Frame format, CRC, message types, payload layouts, example frames |
-| [UML diagrams](docs/uml/) | Use case, architecture, sequence, state machines |
-
-## Roadmap
-
-- [x] Phase 0 — Environment, repository, CI
-- [x] Phase 1 — Requirements, protocol specification, UML design
-- [ ] Phase 2 — INT8 model on the ESP32-S3, on-device measurements *(firmware built, flashing pending)*
-- [ ] Phase 3 — C++ PC application (OOP, design patterns, unit tests)
-- [ ] Phase 4 — Firmware: UART link, gesture filter, state machine, OLED (I2C), RFID (SPI), LEDs, servo
-- [ ] Phase 5 — Integration and system testing (latency, fault injection, soak test, logic analyzer captures)
-- [ ] Phase 6 — Demo video and final documentation
+- [Requirements specification](docs/requirements.md)
+- [UART protocol specification](docs/protocol.md)
+- [UML diagrams](docs/uml/)
 
 ## Author
 
