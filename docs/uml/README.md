@@ -12,8 +12,10 @@ Edit the `.puml` file, then regenerate the `.svg` — never edit the `.svg` by h
 | [state_system](state_system.svg) | State machine | LOCKED / UNLOCKED / LOCKOUT |
 | [state_gesture_filter](state_gesture_filter.svg) | State machine | Gesture debounce (3 frames, cooldown) |
 | [state_frame_parser](state_frame_parser.svg) | State machine | Byte-by-byte UART frame parser |
+| [class_pc_app](class_pc_app.svg) | Class | C++ host library: interfaces, patterns, relationships |
+| [sequence_client_request](sequence_client_request.svg) | Sequence | One request from the PC with timeout and retry |
 
-The class diagram of the PC application is added in Phase 3, from the real code.
+The class diagram is drawn from the real code in `pc_app/`.
 
 ## Regenerate the SVG files
 

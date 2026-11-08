@@ -1,0 +1,72 @@
+@startuml class_pc_app
+!include _style.iuml
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #F4F7FB
+  BorderColor #3A6EA5
+}
+title PC host library (pc_app) — class diagram
+hide empty members
+
+interface ISerialPort <<interface>> {
+  +write(data, len)
+  +read(buffer, maxLen, timeoutMs) : size_t
+  +description() : string
+}
+
+class PosixSerialPort <<RAII>> {
+  -fd_ : int
+  +PosixSerialPort(path, baud)
+  +~PosixSerialPort()
+}
+
+class MockSerialPort <<test double>> {
+  -parser_ : FrameParser
+  -state_ : SysState
+  +injectFault(fault, count)
+  +tapCard(registered)
+}
+
+class "openSerialPort()" as Factory <<factory function>> {
+  "mock" -> MockSerialPort
+  other  -> PosixSerialPort
+}
+
+class GestureClient <<facade>> {
+  -port_ : ISerialPort&
+  -parser_ : FrameParser
+  -seq_ : uint8
+  -listeners_ : vector<IClientListener*>
+  +ping() : PingInfo
+  +getState() : SysState
+  +setOutput(target, on) : SysState
+  +infer(rgb) : InferResult
+  +poll(timeoutMs)
+  +addListener(l)
+  -request(type, payload) : Frame
+}
+
+class FrameParser <<state machine>> {
+  -state_ : State
+  +feed(byte) : Event
+  +frame() : Frame
+  +reset()
+}
+
+interface IClientListener <<observer>> {
+  +onStateChanged(event)
+}
+
+class "encodeFrame() / crc16()" as Codec <<free functions>>
+class "decodePing() / decodeSysState()\ndecodeInfer() / decodeStateEvent()" as Messages <<free functions>>
+
+ISerialPort <|.. PosixSerialPort
+ISerialPort <|.. MockSerialPort
+Factory ..> ISerialPort : creates
+GestureClient o--> ISerialPort : uses (injected)
+GestureClient *--> FrameParser
+GestureClient ..> Codec
+GestureClient ..> Messages
+GestureClient o--> "0..*" IClientListener : notifies
+MockSerialPort *--> FrameParser
+@enduml
