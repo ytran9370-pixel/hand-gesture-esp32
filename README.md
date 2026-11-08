@@ -1,19 +1,18 @@
-# Hand Gesture ESP32
+# HAND GESTURE 
 
-![CI](https://github.com/ytran9370-pixel/hand-gesture-esp32/actions/workflows/build.yml/badge.svg)
-
-A gesture-controlled embedded system that runs a model convolutional neural network (CNN) INT8 on an ESP32-S3 microcontroller.
+A gesture-controlled embedded system that runs an INT8 convolutional neural network (CNN) on an ESP32-S3 microcontroller.
 The system lets a user switch room lights and open or close a door with hand gestures, without touching any physical switch.
 
 ## How it works
 
-1. The PC webcam captures a webcam frame, finds the hand and resizes it to 64×64 RGB.
-2. The image is sent to the ESP32-S3 in a binary frame with a CRC-16 over UART at 921 600 baud 
-3. On the microcontroller ESP32-S3, a lightweight convolutional neural network (CNN) classifies the gesture, a control state machine decides which action to take. 
-4. The firmware drives the outputs: three LEDs representing room lights, a servo representing a door, an I2C OLED status display and an SPI RFID reader that must unlock the system before any gesture is accepted.
+1. The PC application captures a webcam frame, finds the hand and resizes it to 64×64 RGB.
+2. The image is sent to the ESP32-S3 in a binary frame protected by CRC-16 over UART at 921,600 baud.
+3. On the ESP32-S3, the CNN classifies the gesture and a control state machine decides which action to take.
+4. The firmware drives the outputs: three LEDs representing room lights, a servo representing a door and an I2C OLED status display.
+5. An SPI RFID reader acts as access control: the system must be unlocked with a registered card before any gesture is accepted.
 
 | Gesture | Action |
-|---|---|---|
+|---|---|
 | palm | All lights on |
 | fist | All lights off |
 | one / rock / mute | Toggle light 1 / 2 / 3 |
@@ -21,9 +20,11 @@ The system lets a user switch room lights and open or close a door with hand ges
 | dislike | Close door |
 | stop | Lock the system |
 
+All other gestures are ignored. The selection is explained in the [requirements](docs/requirements.md).
+
 ## Model
 
-Input: 64 x 64 RGB hand image. Output: 18 gesture classes (HaGRID dataset).
+Input: 64×64 RGB hand image. Output: 18 gesture classes (HaGRID dataset).
 
 | Block | Layers | Output size |
 |---|---|---|
@@ -32,6 +33,9 @@ Input: 64 x 64 RGB hand image. Output: 18 gesture classes (HaGRID dataset).
 | Stage 2 | Conv 3x3 (64), Conv 1x1 (64), MaxPool 2x2 | 8 x 8 x 64 |
 | Stage 3 | Conv 3x3 (96), Conv 1x1 (96), MaxPool 2x2 | 4 x 4 x 96 |
 | Head | Global average pooling, fully connected | 18 |
+
+Each convolution is followed by batch normalization (folded into the weights for deployment) and ReLU.
+The network has 8 weight layers, about 95,000 parameters and 16.1 million multiply-accumulate operations per image.
 
 | | FP32 | INT8 (deployed) |
 |---|---|---|
@@ -43,23 +47,23 @@ Input: 64 x 64 RGB hand image. Output: 18 gesture classes (HaGRID dataset).
 
 | Part | Interface | ESP32-S3 pins |
 |---|---|---|
-| ESP32-S3-N16R8 dev board (TDMaker TDM2533) | — | — |
-| PC link (on-board USB-UART bridge) | UART0, 921 600 baud | TX 43, RX 44 |
+| ESP32-S3-N16R8 dev board (TDMaker TDM2533) | - | - |
+| PC link (on-board USB-UART bridge) | UART0, 921,600 baud | TX 43, RX 44 |
 | SSD1306 0.96" OLED | I2C, 400 kHz | SDA 8, SCL 9 |
 | RC522 RFID reader | SPI | SCK 12, MOSI 11, MISO 13, CS 10, RST 14 |
-| 3 LEDs (220 Ω) | GPIO | 4, 5, 6 |
+| 3 LEDs (220 ohm) | GPIO | 4, 5, 6 |
 | SG90 servo | PWM 50 Hz (LEDC) | 7 |
 
 ## Repository layout
 
 ```
-.github/workflows/  CI: host test + ESP-IDF firmware build on every push
-docs/               requirements, UART protocol, UML diagrams (PlantUML sources + SVG)
+.github/workflows/  CI: host test and ESP-IDF firmware build on every push
+docs/               requirements, UART protocol, UML diagrams (PlantUML sources and SVG)
 firmware/           ESP-IDF project for the ESP32-S3 (C)
-host/               Linux build of the inference engine + bit-exact test
-model/              INT8 export script (PyTorch checkpoint -> C arrays)
-pc_app/             C++ host application (Phase 3)
-tests/              end-to-end tests (Phase 5)
+host/               Linux build of the inference engine and bit-exact test
+model/              INT8 export script (PyTorch checkpoint to C arrays)
+pc_app/             C++ host application (in progress)
+tests/              end-to-end tests (in progress)
 ```
 
 ## Documentation
@@ -70,4 +74,4 @@ tests/              end-to-end tests (Phase 5)
 
 ## Author
 
-Tran Yen Quynh — Electronics and Communications Engineering Technology, HCMUTE
+Tran Yen Quynh, Electronics and Communications Engineering Technology, HCMUTE
