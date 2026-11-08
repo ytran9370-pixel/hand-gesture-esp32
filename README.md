@@ -13,7 +13,7 @@ The system lets a user switch room lights and open or close a door with hand ges
 4. The firmware drives the outputs: three LEDs representing room lights, a servo representing a door, an I2C OLED status display and an SPI RFID reader that must unlock the system before any gesture is accepted.
 
 | Gesture | Action |
-|---|---|
+|---|---|---|
 | palm | All lights on |
 | fist | All lights off |
 | one / rock / mute | Toggle light 1 / 2 / 3 |
