@@ -20,8 +20,6 @@ The system lets a user switch room lights and open or close a door with hand ges
 | dislike | Close door |
 | stop | Lock the system |
 
-All other gestures are ignored. The selection is explained in the [requirements](docs/requirements.md).
-
 ## Model
 
 Input: 64×64 RGB hand image. Output: 18 gesture classes (HaGRID dataset).
@@ -34,20 +32,16 @@ Input: 64×64 RGB hand image. Output: 18 gesture classes (HaGRID dataset).
 | Stage 3 | Conv 3x3 (96), Conv 1x1 (96), MaxPool 2x2 | 4 x 4 x 96 |
 | Head | Global average pooling, fully connected | 18 |
 
-Each convolution is followed by batch normalization (folded into the weights for deployment) and ReLU.
-The network has 8 weight layers, about 95,000 parameters and 16.1 million multiply-accumulate operations per image.
-
 | | FP32 | INT8 (deployed) |
 |---|---|---|
-| Test accuracy (5,032 images, split by user) | 94.6% | 94.2% |
+| Test accuracy | 94.6% | 94.2% |
 | Weight size | 370 KB | 92.6 KB |
-| Peak activation memory | 256 KB | 64 KB |
 
 ## Hardware
 
 | Part | Interface | ESP32-S3 pins |
 |---|---|---|
-| ESP32-S3-N16R8 dev board (TDMaker TDM2533) | - | - |
+| ESP32-S3-N16R8 dev board (TDM2533) |  |  |
 | PC link (on-board USB-UART bridge) | UART0, 921,600 baud | TX 43, RX 44 |
 | SSD1306 0.96" OLED | I2C, 400 kHz | SDA 8, SCL 9 |
 | RC522 RFID reader | SPI | SCK 12, MOSI 11, MISO 13, CS 10, RST 14 |
