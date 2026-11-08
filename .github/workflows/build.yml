@@ -9,6 +9,19 @@ jobs:
       - name: Bit-exact test of the C engine on Linux
         run: make -C host
 
+  pc-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GoogleTest
+        run: sudo apt-get update && sudo apt-get install -y libgtest-dev
+      - name: Build C++ host library (warnings as errors, ASan/UBSan)
+        run: |
+          cmake -S pc_app -B build/pc_app
+          cmake --build build/pc_app -j
+      - name: Unit tests
+        run: ctest --test-dir build/pc_app --output-on-failure
+
   build:
     runs-on: ubuntu-latest
     needs: host-test
