@@ -1,4 +1,4 @@
-# HAND GESTURE 
+# Hand Gesture ESP32
 
 A gesture-controlled embedded system that runs an INT8 convolutional neural network (CNN) on an ESP32-S3 microcontroller.
 The system lets a user switch room lights and open or close a door with hand gestures, without touching any physical switch.
