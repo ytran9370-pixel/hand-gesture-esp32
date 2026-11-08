@@ -1,0 +1,25 @@
+' Shared style for all diagrams of the Hand Gesture ESP32 project
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam backgroundColor white
+skinparam ArrowColor #333333
+skinparam roundCorner 8
+skinparam state {
+  BackgroundColor #F4F7FB
+  BorderColor #3A6EA5
+}
+skinparam sequence {
+  ParticipantBackgroundColor #F4F7FB
+  ParticipantBorderColor #3A6EA5
+  LifeLineBorderColor #8899AA
+  GroupBorderColor #8899AA
+}
+skinparam usecase {
+  BackgroundColor #F4F7FB
+  BorderColor #3A6EA5
+}
+skinparam component {
+  BackgroundColor #F4F7FB
+  BorderColor #3A6EA5
+}

@@ -1,0 +1,41 @@
+@startuml architecture
+!include _style.iuml
+title Hand Gesture ESP32 — System architecture
+left to right direction
+
+node "PC host (Windows / Linux)\nC++17 application" as PC {
+  component "Webcam capture\n(OpenCV)" as CAM
+  component "HandCropper\n64x64 RGB" as CROP
+  component "GestureClient\n+ FrameParser" as CLI
+  component "UI\n(gesture, latency, FPS)" as UI
+  CAM --> CROP
+  CROP --> CLI
+  CLI --> UI
+}
+
+node "ESP32-S3-N16R8 (TDM2533)\nESP-IDF + FreeRTOS" as ESP {
+  component "link_rx task\n(core 0)\nUART frame parser" as RX
+  component "worker task\n(core 1)\nINT8 CNN inference" as INF
+  component "GestureFilter\n3 frames, conf >= 0.8" as FIL
+  component "Controller\nlock state machine" as CTRL
+  component "rfid task\n(poll 200 ms)" as RFT
+  component "display task\n(low priority)" as DSP
+  RX --> INF : work queue\n(zero-copy buffer)
+  INF --> FIL
+  FIL --> CTRL : confirmed gesture
+  RFT --> CTRL : card UID
+  CTRL --> DSP : mailbox
+}
+
+component "RC522 RFID\n13.56 MHz" as RFID
+component "SSD1306 OLED\n128x64" as OLED
+component "LED1 / LED2 / LED3" as LEDS
+component "SG90 servo (door)" as SERVO
+
+CLI --> RX : UART 921600 8N1\nimages (HG-ICD-001)
+RX --> CLI : results, events
+RFT --> RFID : SPI
+DSP --> OLED : I2C
+CTRL --> LEDS : GPIO
+CTRL --> SERVO : PWM 50 Hz
+@enduml
