@@ -146,10 +146,11 @@ class LinkTimeout(Exception):
 
 # ---------------------------------------------------------------- client
 class GestureClient:
-    """Request/response with sequence numbers, 1 s timeout and 2 retries (FR-COM-06).
+    """Request/response with sequence numbers, timeout and 2 retries (FR-COM-06).
     Events (EVT_STATE_CHANGED) that arrive at any time are passed to `on_event(state, reason)`."""
 
-    def __init__(self, port: str, baud: int = 921600, timeout_s: float = 1.0, retries: int = 2, on_event=None):
+    # 2 s: one INFER = ~134 ms on the wire + ~665 ms inference (plain C engine), so 1 s is too tight
+    def __init__(self, port: str, baud: int = 921600, timeout_s: float = 2.0, retries: int = 2, on_event=None):
         import serial  # pyserial; imported here so the protocol code above can be tested without it
 
         self.ser = serial.serial_for_url(port, baudrate=baud, timeout=0.02)
@@ -186,14 +187,15 @@ class GestureClient:
         if f.type == EVT_STATE_CHANGED and self.on_event is not None:
             self.on_event(SysState.decode(f.payload), f.payload[6])
 
-    def request(self, msg_type: int, payload: bytes = b"") -> Frame:
+    def request(self, msg_type: int, payload: bytes = b"", timeout_s: float | None = None) -> Frame:
         self.stats["requests"] += 1
+        timeout_s = self.timeout_s if timeout_s is None else timeout_s
         for attempt in range(self.retries + 1):
             if attempt:
                 self.stats["retries"] += 1
             seq = self._next_seq()
             self.ser.write(encode_frame(msg_type, seq, payload))
-            deadline = time.monotonic() + self.timeout_s
+            deadline = time.monotonic() + timeout_s
             retry = False
             while not retry and time.monotonic() < deadline:
                 for f in self._read_frames(deadline):
@@ -213,6 +215,13 @@ class GestureClient:
             if not retry:
                 self.stats["timeouts"] += 1
         raise LinkTimeout(f"no answer to request 0x{msg_type:02X} after {self.retries + 1} attempts")
+
+    def _request_once(self, msg_type: int, timeout_s: float) -> Frame:
+        retries, self.retries = self.retries, 0
+        try:
+            return self.request(msg_type, timeout_s=timeout_s)
+        finally:
+            self.retries = retries
 
     def poll(self, seconds: float) -> None:
         """Only listen for events (nothing is sent)."""
@@ -240,7 +249,8 @@ class GestureClient:
         return r
 
     def selftest(self) -> dict:
-        passed, total, _, avg, mn, mx = struct.unpack("<BBHIII", self.request(SELFTEST).payload)
+        # runs 10 images on the chip (~7 s with the plain C engine), so it gets a long timeout and no retry
+        passed, total, _, avg, mn, mx = struct.unpack("<BBHIII", self._request_once(SELFTEST, 20.0).payload)
         return {"passed": passed, "total": total, "avg_ms": avg / 1000, "min_ms": mn / 1000, "max_ms": mx / 1000}
 
     def stats_(self) -> dict:
