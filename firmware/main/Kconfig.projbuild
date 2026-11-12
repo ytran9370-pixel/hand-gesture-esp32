@@ -1,0 +1,29 @@
+menu "Hand Gesture configuration"
+
+    config HG_RFID_WHITELIST
+        string "Authorized RFID card UIDs"
+        default ""
+        help
+            Comma-separated list of card UIDs in hex, for example "A1B2C3D4,0E5F6071".
+            An unknown card shows its UID on the OLED and in the log, so tap your card once
+            and copy the UID here.
+
+    config HG_OLED_HEIGHT
+        int "OLED height in pixels"
+        range 32 64
+        default 64
+        help
+            64 for a 0.96" 128x64 SSD1306, 32 for a 0.91" 128x32 SSD1306.
+
+    config HG_ENABLE_RFID
+        bool "Use the RC522 RFID reader"
+        default y
+        help
+            Turn off to run without the reader (for example in the QEMU emulator).
+            With it off, cards cannot unlock the system; use the PC command SET_OUTPUT for tests.
+
+    config HG_UART_BAUD
+        int "PC link baud rate"
+        default 921600
+
+endmenu

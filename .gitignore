@@ -5,3 +5,6 @@ firmware/sdkconfig
 firmware/sdkconfig.old
 firmware/dependencies.lock
 __pycache__/
+host/test_logic
+docs/
+pc_app/

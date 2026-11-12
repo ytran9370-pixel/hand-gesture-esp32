@@ -1,6 +1,21 @@
+# ---- chip and performance ----
 CONFIG_IDF_TARGET="esp32s3"
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# ---- FreeRTOS: 1 ms tick so short delays (RC522 polling) are accurate ----
+CONFIG_FREERTOS_HZ=1000
 CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# ---- logs on the native USB port, so UART0 carries only protocol frames ----
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+
+# ---- project settings (menuconfig -> "Hand Gesture configuration") ----
+# Authorized cards: tap a card, read the UID on the OLED, put it here, e.g. "A1B2C3D4,0E5F6071"
+CONFIG_HG_RFID_WHITELIST=""
+# 64 for a 0.96" 128x64 OLED, 32 for a 0.91" 128x32 OLED
+CONFIG_HG_OLED_HEIGHT=64
+CONFIG_HG_UART_BAUD=921600

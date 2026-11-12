@@ -1,67 +1,62 @@
-/*
- * main.c - chay model INT8 tren ESP32-S3 voi cac anh test nhung san trong flash.
+/* main.c - Hand Gesture firmware for the ESP32-S3.
  *
- * Buoc 1: kiem tra dung tung bit: logits tren chip == logits cua golden model NumPy
- * Buoc 2: do toc do (trung binh 50 lan) va thoi gian tung lop
- */
-#include <inttypes.h>
-#include <stdio.h>
-#include <string.h>
-#include "esp_heap_caps.h"
-#include "esp_timer.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "model.h"
+ * Boot order: outputs to a safe state first, then the self-test, then the optional peripherals,
+ * and the UART link last, so the PC never talks to a half-initialised device.
+ *
+ *   core 0: link_rx (prio 12)  control (6)  display (2)
+ *   core 1: infer (10)
+ *
+ * Logs go to the native USB port (USB-Serial-JTAG); UART0 carries only protocol frames. */
+#include <stdbool.h>
 
-static const char *k_layer_names[NUM_CONV_LAYERS + 2] = {
-    "stem", "stage1_conv", "stage1_pw", "stage2_conv", "stage2_pw", "stage3_conv", "stage3_pw", "gap", "fc"};
+#include "app_config.h"
+#include "app_state.h"
+#include "commands.h"
+#include "esp_heap_caps.h"
+#include "esp_log.h"
+#include "link.h"
+#include "model.h"
+#include "oled.h"
+#include "outputs.h"
+#include "rc522.h"
+#include "ui.h"
+
+static const char *TAG = "main";
 
 void app_main(void)
 {
-    int32_t logits[NUM_CLASSES];
-    const int img = IMG_W * IMG_H * IMG_C;
+    ESP_LOGI(TAG, "Hand Gesture firmware %s", FW_VERSION);
 
-    printf("\n===== Hand gesture INT8 tren ESP32-S3 =====\n");
-    printf("SRAM trong: %u bytes\n\n", (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    /* 1. outputs first: LEDs off, door closed (FR-ACT-03) */
+    ESP_ERROR_CHECK(outputs_init());
 
-    /* ---------- 1. kiem tra dung dan ---------- */
-    int n_exact = 0, n_correct = 0;
-    printf("%-4s %-16s %-16s %6s %8s %s\n", "#", "nhan that", "du doan", "conf", "ms", "logits==golden?");
-    for (int i = 0; i < g_num_test; i++) {
-        int64_t t0 = esp_timer_get_time();
-        model_run(&g_test_rgb[i * img], logits);
-        int64_t us = esp_timer_get_time() - t0;
-        int pred = model_argmax(logits);
-        int exact = memcmp(logits, &g_test_logits[i * NUM_CLASSES], sizeof(logits)) == 0;
-        n_exact += exact;
-        n_correct += pred == g_test_label[i];
-        printf("%-4d %-16s %-16s %5.1f%% %8.2f %s\n", i, g_labels[g_test_label[i]], g_labels[pred],
-               100.0f * model_confidence(logits, pred), us / 1000.0, exact ? "OK" : "SAI");
-        vTaskDelay(1);   /* nhuong CPU cho idle task (tranh canh bao watchdog) */
+    /* 2. optional peripherals: a missing OLED or RFID reader must not stop the system (FR-DSP-03) */
+    const bool oled_ok = oled_init() == ESP_OK;
+    if (oled_ok) {
+        oled_text(0, "HAND GESTURE", true);
+        oled_text(2, "self-test...", false);
+        oled_flush();
     }
-    printf("\n=> Trung tung bit voi golden model: %d/%d   |  Dung nhan: %d/%d\n\n", n_exact, g_num_test,
-           n_correct, g_num_test);
+#if CONFIG_HG_ENABLE_RFID
+    const bool rfid_ok = rc522_init() == ESP_OK;
+#else
+    const bool rfid_ok = false;
+#endif
 
-    /* ---------- 2. benchmark ---------- */
-    const int runs = 50;
-    uint64_t total = 0, layer_sum[NUM_CONV_LAYERS + 2] = {0};
-    for (int r = 0; r < runs; r++) {
-        int64_t t0 = esp_timer_get_time();
-        model_run(&g_test_rgb[(r % g_num_test) * img], logits);
-        total += esp_timer_get_time() - t0;
-        for (int l = 0; l < NUM_CONV_LAYERS + 2; l++) {
-            layer_sum[l] += g_layer_us[l];
-        }
-        vTaskDelay(1);
+    /* 3. self-test with the golden images (FR-DIAG-01) */
+    const int passed = commands_post();
+    if (passed != g_num_test) {
+        ESP_LOGE(TAG, "self-test FAILED - inference results are not trustworthy");
     }
-    double avg_ms = total / 1000.0 / runs;
-    printf("Toc do trung binh (%d lan): %.2f ms/anh  (%.1f anh/giay, 16.1 M MAC)\n", runs, avg_ms, 1000.0 / avg_ms);
-    for (int l = 0; l < NUM_CONV_LAYERS + 2; l++) {
-        printf("   %-12s %8.2f ms  %5.1f%%\n", k_layer_names[l], layer_sum[l] / 1000.0 / runs,
-               100.0 * layer_sum[l] / total);
-    }
-    printf("\nXong. (nhan nut RST de chay lai)\n");
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+
+    /* 4. state, tasks, and finally the PC link */
+    app_state_init(rfid_ok);
+    ESP_ERROR_CHECK(link_init());
+    ESP_ERROR_CHECK(commands_start());
+    ESP_ERROR_CHECK(ui_start());
+    ESP_ERROR_CHECK(link_start());
+
+    ESP_LOGI(TAG, "ready: OLED %s, RFID %s, free internal RAM %u bytes", oled_ok ? "ok" : "missing",
+             rfid_ok ? "ok" : "missing", (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    /* app_main returns; its task is deleted and the four tasks above keep running */
 }
