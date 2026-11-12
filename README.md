@@ -58,7 +58,7 @@ Measured on the ESP32-S3 board (240 MHz, plain C engine).
 | Match with the Python reference model | 10/10 test images bit-exact |
 | Accuracy on real hand photos | 26/30 (86.7%) |
 | RAM used by the firmware | about 49% |
-| Unit tests | 25 GoogleTest (C++) + 85 checks (firmware logic in C) |
+| Unit tests | 85 checks (firmware logic in C) + Python protocol tests |
 
 The accuracy on real photos is lower than on the test set because colour, lighting, background.
 
